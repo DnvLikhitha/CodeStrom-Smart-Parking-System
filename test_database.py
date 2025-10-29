@@ -20,35 +20,40 @@ def test_database_connection():
     
     api = DatabaseAPI()
     
-    # Test 1: Get parking lots
-    print("\n1️⃣  Testing: Get Parking Lots")
+    # Test 1: Get parking lots and slots
+    print("\n1️⃣  Testing: Get Available Parking Slots")
     print("-" * 70)
-    result = api.get_parking_lots()
+    result = api.get_all_available_slots()
     
     if result['status'] == 'success':
-        lots = result.get('data', [])
-        print(f"✅ SUCCESS: Found {len(lots)} parking lots")
+        slots = result.get('data', [])
+        total_lots = result.get('total_lots', 0)
+        print(f"✅ SUCCESS: Found {len(slots)} available slots from {total_lots} parking lot(s)")
         
-        if lots:
-            print(f"\n📊 Sample Parking Lot:")
-            sample = lots[0]
-            print(f"   ID: {sample.get('id')}")
-            print(f"   Name: {sample.get('name')}")
-            print(f"   Location: {sample.get('location')}")
-            print(f"   Coordinates: ({sample.get('latitude')}, {sample.get('longitude')})")
-            print(f"   Price/Hour: ₹{sample.get('price_per_hour')}")
-            print(f"   Available: {'Yes' if sample.get('is_available') else 'No'}")
+        if slots:
+            print(f"\n📊 Sample Parking Slot:")
+            sample = slots[0]
+            print(f"   Slot ID: {sample.get('slot_id')}")
+            print(f"   Slot Number: {sample.get('slot_number')}")
+            print(f"   Lot Name: {sample.get('lot_name')}")
+            print(f"   Location: {sample.get('lot_address')}")
+            print(f"   Coordinates: ({sample.get('lot_latitude')}, {sample.get('lot_longitude')})")
+            print(f"   Vehicle Type: {sample.get('vehicle_type')}")
+            print(f"   Price/Hour: ₹{sample.get('hourly_rate')}")
             
             # Test data transformation
             print(f"\n🔄 Transforming data for AI model...")
-            transformed = transform_parking_lots_for_ai(lots)
+            transformed = transform_parking_lots_for_ai(slots)
             print(f"✅ Transformed {len(transformed)} slots")
             print(f"\n📊 Transformed Sample:")
             t_sample = transformed[0]
             print(f"   Slot ID: {t_sample['slot_id']}")
+            print(f"   DB Slot ID: {t_sample.get('db_slot_id')}")
+            print(f"   Coordinates: ({t_sample['latitude']}, {t_sample['longitude']})")
             print(f"   Proximity Score: {t_sample['proximity_score']}")
             print(f"   Popularity Score: {t_sample['popularity_score']}")
             print(f"   Price Factor: {t_sample['price_factor']}")
+            print(f"   Price/Hour: ₹{t_sample['price_per_hour']}")
     else:
         print(f"❌ FAILED: {result.get('message')}")
     
@@ -84,13 +89,16 @@ def test_booking_flow(api):
     print("-" * 70)
     
     # Get available slots first
-    lots_result = api.get_parking_lots()
-    if lots_result['status'] != 'success' or not lots_result.get('data'):
-        print("❌ Cannot test booking: No parking lots available")
+    slots_result = api.get_all_available_slots()
+    if slots_result['status'] != 'success' or not slots_result.get('data'):
+        print("❌ Cannot test booking: No available slots")
         return False
     
     # Use first available slot
-    slot = lots_result['data'][0]
+    slot = slots_result['data'][0]
+    slot_db_id = slot.get('slot_id') or slot.get('id') or 1
+    slot_number = slot.get('slot_number', 'Unknown')
+    lot_name = slot.get('lot_name', 'Unknown')
     
     # Create booking
     start_time = datetime.now()
@@ -98,14 +106,15 @@ def test_booking_flow(api):
     
     booking_data = {
         "user_id": 1,  # Assuming user ID 1 exists or was just created
-        "slot_id": slot.get('id', 1),
+        "slot_id": int(slot_db_id),
         "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
         "total_amount": 100.0
     }
     
     print(f"\n📝 Creating booking...")
-    print(f"   Slot: {slot.get('name')} (ID: {slot.get('id')})")
+    print(f"   Lot: {lot_name}")
+    print(f"   Slot: {slot_number} (DB ID: {slot_db_id})")
     print(f"   Duration: 2 hours")
     print(f"   Amount: ₹100")
     
