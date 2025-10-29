@@ -159,10 +159,10 @@ async def recommend_slots(request: SlotRecommendationRequest):
         if request.slots:
             slots_data = [slot.dict() for slot in request.slots]
         else:
-            # Option 2: Fetch from database
-            db_result = db_api.get_parking_lots()
+            # Option 2: Fetch available slots from database
+            db_result = db_api.get_all_available_slots()
             if db_result['status'] != 'success':
-                raise HTTPException(status_code=500, detail="Failed to fetch parking lots from database")
+                raise HTTPException(status_code=500, detail="Failed to fetch parking slots from database")
             
             # Transform database format to AI model format
             slots_data = transform_parking_lots_for_ai(db_result.get('data', []))
@@ -186,7 +186,8 @@ async def recommend_slots(request: SlotRecommendationRequest):
         return {
             "success": True,
             "recommendations": recommended_slots,
-            "count": len(recommended_slots)
+            "count": len(recommended_slots),
+            "total_available": len(slots_data)
         }
         
     except Exception as e:
