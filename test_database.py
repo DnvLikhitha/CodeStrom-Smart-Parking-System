@@ -1,0 +1,273 @@
+"""
+Test Database API Integration
+Tests the connection to https://aadarshsenapati.in/api/api.php
+"""
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from backend.database_api import DatabaseAPI, transform_parking_lots_for_ai
+from datetime import datetime, timedelta
+import json
+
+
+def test_database_connection():
+    """Test basic database connectivity"""
+    print("\n" + "=" * 70)
+    print("DATABASE API CONNECTION TEST")
+    print("=" * 70)
+    
+    api = DatabaseAPI()
+    
+    # Test 1: Get parking lots
+    print("\n1️⃣  Testing: Get Parking Lots")
+    print("-" * 70)
+    result = api.get_parking_lots()
+    
+    if result['status'] == 'success':
+        lots = result.get('data', [])
+        print(f"✅ SUCCESS: Found {len(lots)} parking lots")
+        
+        if lots:
+            print(f"\n📊 Sample Parking Lot:")
+            sample = lots[0]
+            print(f"   ID: {sample.get('id')}")
+            print(f"   Name: {sample.get('name')}")
+            print(f"   Location: {sample.get('location')}")
+            print(f"   Coordinates: ({sample.get('latitude')}, {sample.get('longitude')})")
+            print(f"   Price/Hour: ₹{sample.get('price_per_hour')}")
+            print(f"   Available: {'Yes' if sample.get('is_available') else 'No'}")
+            
+            # Test data transformation
+            print(f"\n🔄 Transforming data for AI model...")
+            transformed = transform_parking_lots_for_ai(lots)
+            print(f"✅ Transformed {len(transformed)} slots")
+            print(f"\n📊 Transformed Sample:")
+            t_sample = transformed[0]
+            print(f"   Slot ID: {t_sample['slot_id']}")
+            print(f"   Proximity Score: {t_sample['proximity_score']}")
+            print(f"   Popularity Score: {t_sample['popularity_score']}")
+            print(f"   Price Factor: {t_sample['price_factor']}")
+    else:
+        print(f"❌ FAILED: {result.get('message')}")
+    
+    return api
+
+
+def test_user_registration(api):
+    """Test user registration"""
+    print("\n2️⃣  Testing: User Registration")
+    print("-" * 70)
+    
+    test_user = {
+        "name": "Test User AI",
+        "phone": "+919999888877",
+        "email": "aitest@smartparking.com"
+    }
+    
+    result = api.register_user(**test_user)
+    
+    if result['status'] == 'success':
+        print(f"✅ SUCCESS: {result.get('message')}")
+        print(f"   Name: {test_user['name']}")
+        print(f"   Phone: {test_user['phone']}")
+    else:
+        print(f"❌ FAILED: {result.get('message')}")
+    
+    return result['status'] == 'success'
+
+
+def test_booking_flow(api):
+    """Test complete booking flow"""
+    print("\n3️⃣  Testing: Booking Flow")
+    print("-" * 70)
+    
+    # Get available slots first
+    lots_result = api.get_parking_lots()
+    if lots_result['status'] != 'success' or not lots_result.get('data'):
+        print("❌ Cannot test booking: No parking lots available")
+        return False
+    
+    # Use first available slot
+    slot = lots_result['data'][0]
+    
+    # Create booking
+    start_time = datetime.now()
+    end_time = start_time + timedelta(hours=2)
+    
+    booking_data = {
+        "user_id": 1,  # Assuming user ID 1 exists or was just created
+        "slot_id": slot.get('id', 1),
+        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "total_amount": 100.0
+    }
+    
+    print(f"\n📝 Creating booking...")
+    print(f"   Slot: {slot.get('name')} (ID: {slot.get('id')})")
+    print(f"   Duration: 2 hours")
+    print(f"   Amount: ₹100")
+    
+    result = api.book_slot(**booking_data)
+    
+    if result['status'] == 'success':
+        booking_uid = result.get('booking_uid')
+        print(f"✅ SUCCESS: Booking created")
+        print(f"   Booking UID: {booking_uid}")
+        
+        # Test getting booking status
+        print(f"\n📊 Fetching booking status...")
+        status_result = api.get_booking_status(booking_uid)
+        
+        if status_result['status'] == 'success':
+            booking = status_result.get('data', {})
+            print(f"✅ Booking found:")
+            print(f"   Status: {booking.get('status')}")
+            print(f"   Payment Status: {booking.get('payment_status')}")
+            print(f"   Amount: ₹{booking.get('total_amount')}")
+        
+        return booking_uid
+    else:
+        print(f"❌ FAILED: {result.get('message')}")
+        return None
+
+
+def test_payment_update(api, booking_uid):
+    """Test payment status update"""
+    if not booking_uid:
+        print("\n⏭️  Skipping payment test (no booking UID)")
+        return
+    
+    print("\n4️⃣  Testing: Payment Update")
+    print("-" * 70)
+    
+    payment_data = {
+        "booking_uid": booking_uid,
+        "status": "Completed",
+        "transaction_id": f"txn_test_{booking_uid}",
+        "amount": 100.0
+    }
+    
+    print(f"💳 Updating payment status to 'Completed'...")
+    result = api.update_payment(**payment_data)
+    
+    if result['status'] == 'success':
+        print(f"✅ SUCCESS: {result.get('message')}")
+        
+        # Verify update
+        print(f"\n✓ Verifying update...")
+        status_result = api.get_booking_status(booking_uid)
+        if status_result['status'] == 'success':
+            booking = status_result.get('data', {})
+            print(f"   Payment Status: {booking.get('payment_status')}")
+    else:
+        print(f"❌ FAILED: {result.get('message')}")
+
+
+def test_feedback_submission(api, booking_uid):
+    """Test feedback submission"""
+    if not booking_uid:
+        print("\n⏭️  Skipping feedback test (no booking UID)")
+        return
+    
+    print("\n5️⃣  Testing: Feedback Submission")
+    print("-" * 70)
+    
+    # Get booking ID (not UID) first
+    status_result = api.get_booking_status(booking_uid)
+    if status_result['status'] != 'success':
+        print("❌ Cannot get booking details for feedback")
+        return
+    
+    booking = status_result.get('data', {})
+    booking_id = booking.get('id')
+    user_id = booking.get('user_id', 1)
+    
+    feedback_data = {
+        "user_id": user_id,
+        "booking_id": booking_id,
+        "rating": 5.0,
+        "comments": "Excellent parking spot! Very convenient location."
+    }
+    
+    print(f"⭐ Submitting feedback...")
+    print(f"   Rating: {feedback_data['rating']}/5.0")
+    print(f"   Comment: {feedback_data['comments']}")
+    
+    result = api.add_feedback(**feedback_data)
+    
+    if result['status'] == 'success':
+        print(f"✅ SUCCESS: {result.get('message')}")
+    else:
+        print(f"❌ FAILED: {result.get('message')}")
+
+
+def test_booking_cancellation(api, booking_uid):
+    """Test booking cancellation"""
+    if not booking_uid:
+        print("\n⏭️  Skipping cancellation test (no booking UID)")
+        return
+    
+    print("\n6️⃣  Testing: Booking Cancellation")
+    print("-" * 70)
+    
+    print(f"❌ Cancelling booking {booking_uid}...")
+    result = api.cancel_booking(booking_uid)
+    
+    if result['status'] == 'success':
+        print(f"✅ SUCCESS: {result.get('message')}")
+        
+        # Verify cancellation
+        status_result = api.get_booking_status(booking_uid)
+        if status_result['status'] == 'success':
+            booking = status_result.get('data', {})
+            print(f"   Status: {booking.get('status')}")
+    else:
+        print(f"❌ FAILED: {result.get('message')}")
+
+
+def main():
+    """Run all database tests"""
+    print("\n" + "=" * 70)
+    print("🚀 SMART PARKING - DATABASE API INTEGRATION TESTS")
+    print("=" * 70)
+    print(f"Database URL: https://aadarshsenapati.in/api/api.php")
+    print(f"Test Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    try:
+        # Initialize API
+        api = test_database_connection()
+        
+        # Test user registration
+        test_user_registration(api)
+        
+        # Test booking flow
+        booking_uid = test_booking_flow(api)
+        
+        # Test payment update
+        test_payment_update(api, booking_uid)
+        
+        # Test feedback
+        test_feedback_submission(api, booking_uid)
+        
+        # Don't cancel in tests - keep the data
+        # test_booking_cancellation(api, booking_uid)
+        
+        print("\n" + "=" * 70)
+        print("✅ DATABASE API INTEGRATION TESTS COMPLETED")
+        print("=" * 70)
+        print("\n💡 Next Steps:")
+        print("   1. Verify data in database")
+        print("   2. Test AI recommendations with real data")
+        print("   3. Integrate with payment system")
+        print("   4. Deploy to production")
+        
+    except Exception as e:
+        print(f"\n❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+if __name__ == "__main__":
+    main()

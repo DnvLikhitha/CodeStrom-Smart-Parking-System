@@ -1,0 +1,19 @@
+# Render Deployment Configuration for AI Model Backend
+
+# Build Command
+build:
+  command: pip install -r requirements.txt
+
+# Start Command
+start:
+  command: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+
+# Environment
+env:
+  PYTHON_VERSION: 3.11
+  
+# Health Check
+healthCheckPath: /
+
+# Auto Deploy
+autoDeploy: true
