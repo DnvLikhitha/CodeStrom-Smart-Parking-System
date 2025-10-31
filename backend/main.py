@@ -12,7 +12,8 @@ import sys
 import os
 from datetime import datetime
 import json
-
+from dotenv import load_dotenv
+load_dotenv()
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -38,8 +39,8 @@ payment_simulator = PaymentSimulator()
 db_api = DatabaseAPI()
 
 # Razorpay credentials (from environment or config)
-RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_RYlqJbc24Sl6jz")
-RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "bghQe0L7iort9vmqb6Jlf8Ec")
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
 
 # In-memory feedback cache (feedback is stored in DB, this is just for quick access)
 feedback_cache = []
