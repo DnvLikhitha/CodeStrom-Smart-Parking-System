@@ -104,19 +104,22 @@ def test_booking_flow(api):
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=2)
     
+    # Use user_id = 9 (known to exist in database)
+    # In production, this should be the authenticated user's ID
     booking_data = {
-        "user_id": 1,  # Assuming user ID 1 exists or was just created
+        "user_id": 9,  # Using existing user ID from database
         "slot_id": int(slot_db_id),
         "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "total_amount": 100.0
+        "total_amount": 120.0
     }
     
     print(f"\n📝 Creating booking...")
     print(f"   Lot: {lot_name}")
     print(f"   Slot: {slot_number} (DB ID: {slot_db_id})")
     print(f"   Duration: 2 hours")
-    print(f"   Amount: ₹100")
+    print(f"   Amount: ₹120")
+    print(f"   User ID: 9 (existing user)")
     
     result = api.book_slot(**booking_data)
     
