@@ -409,7 +409,7 @@ async def verify_payment(request: PaymentVerificationRequest):
             # Update database payment status
             update_result = db_api.update_payment(
                 booking_uid=request.order_id.replace('order_sim_', ''),
-                status='Completed',
+                payment_status='Paid',
                 transaction_id=request.payment_id,
                 amount=0
             )
@@ -463,7 +463,7 @@ async def simulate_payment(booking_uid: str, amount: float):
         # Update booking payment status in database
         update_result = db_api.update_payment(
             booking_uid=booking_uid,
-            status='Completed',
+            payment_status='Paid',
             transaction_id=simulated['payment_id'],
             amount=amount
         )
