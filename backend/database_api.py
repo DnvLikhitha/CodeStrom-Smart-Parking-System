@@ -246,7 +246,30 @@ class DatabaseAPI:
             "end_time": end_time,
             "total_amount": total_amount
         }
-        return self._make_request("book_slot", "POST", data)
+        result = self._make_request("book_slot", "POST", data)
+        
+        # If booking successful, mark slot as unavailable
+        if result.get('status') == 'success':
+            self.update_slot_availability(slot_id, is_available=0)
+        
+        return result
+    
+    def update_slot_availability(self, slot_id: int, is_available: int) -> Dict:
+        """
+        Update parking slot availability status
+        
+        Args:
+            slot_id: Parking slot ID
+            is_available: Availability status (1 = available, 0 = booked/unavailable)
+            
+        Returns:
+            {"status": "success", "message": "Slot updated successfully"}
+        """
+        data = {
+            "slot_id": slot_id,
+            "is_available": is_available
+        }
+        return self._make_request("update_slot", "POST", data)
     
     def update_payment(self, booking_uid: str, payment_status: str, 
                       transaction_id: str = "", amount: float = 0) -> Dict:
@@ -306,7 +329,7 @@ class DatabaseAPI:
     
     def cancel_booking(self, booking_uid: str) -> Dict:
         """
-        Cancel a booking
+        Cancel a booking and release the slot
         
         Args:
             booking_uid: Unique booking ID
@@ -314,8 +337,23 @@ class DatabaseAPI:
         Returns:
             {"status": "success", "message": "Booking cancelled"}
         """
+        # First get booking details to find the slot_id
+        booking_result = self.get_booking_status(booking_uid)
+        
+        # Cancel the booking
         data = {"booking_uid": booking_uid}
-        return self._make_request("cancel_booking", "POST", data)
+        result = self._make_request("cancel_booking", "POST", data)
+        
+        # If cancellation successful and we have slot_id, release the slot
+        if result.get('status') == 'success' and booking_result.get('status') == 'success':
+            booking_data = booking_result.get('data', {})
+            slot_id = booking_data.get('slot_id')
+            if slot_id:
+                self.update_slot_availability(int(slot_id), is_available=1)
+        
+        return result
+        
+        return result
     
     # Feedback
     def add_feedback(self, user_id: int, booking_id: int, 
