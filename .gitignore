@@ -49,3 +49,5 @@ Thumbs.db
 # Database
 *.db
 *.sqlite3
+
+demo_ai_model.py
