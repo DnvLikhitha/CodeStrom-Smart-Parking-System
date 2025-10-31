@@ -131,12 +131,12 @@ def main():
         try:
             result = api.update_payment(
                 booking_uid=booking_uid,
-                status='Completed',
+                payment_status='Paid',
                 transaction_id=f'txn_test_{booking_uid}',
                 amount=120.0
             )
             if result['status'] == 'success':
-                print(f"✅ PASSED - Payment updated to Completed")
+                print(f"✅ PASSED - Payment updated to Paid")
                 results['Update Payment'] = True
             else:
                 print(f"❌ FAILED - {result.get('message')}")
