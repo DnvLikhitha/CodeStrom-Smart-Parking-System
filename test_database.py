@@ -156,12 +156,12 @@ def test_payment_update(api, booking_uid):
     
     payment_data = {
         "booking_uid": booking_uid,
-        "status": "Completed",
+        "payment_status": "Paid",
         "transaction_id": f"txn_test_{booking_uid}",
-        "amount": 100.0
+        "amount": 120.0
     }
     
-    print(f"💳 Updating payment status to 'Completed'...")
+    print(f"💳 Updating payment status to 'Paid'...")
     result = api.update_payment(**payment_data)
     
     if result['status'] == 'success':
