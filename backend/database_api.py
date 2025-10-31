@@ -248,27 +248,27 @@ class DatabaseAPI:
         }
         return self._make_request("book_slot", "POST", data)
     
-    def update_payment(self, booking_uid: str, status: str, 
+    def update_payment(self, booking_uid: str, payment_status: str, 
                       transaction_id: str = "", amount: float = 0) -> Dict:
         """
         Update payment status for a booking
         
         Args:
             booking_uid: Unique booking ID (e.g., "ABC12345")
-            status: Payment status ("Pending", "Completed", "Failed")
+            payment_status: Payment status ("Pending", "Paid", "Failed", "Refunded")
             transaction_id: Razorpay transaction ID (optional)
             amount: Payment amount (optional)
             
         Returns:
-            {"status": "success", "message": "Payment updated"}
+            {"status": "success", "message": "Payment status updated successfully"}
         """
         data = {
             "booking_uid": booking_uid,
-            "status": status,
+            "payment_status": payment_status,
             "transaction_id": transaction_id,
             "amount": amount
         }
-        return self._make_request("update_payment", "POST", data)
+        return self._make_request("update_payment_status", "POST", data)
     
     def get_booking_status(self, booking_uid: str) -> Dict:
         """
