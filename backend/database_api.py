@@ -113,14 +113,17 @@ class DatabaseAPI:
         data = {"parking_lot_id": parking_lot_id}
         return self._make_request("get_available_slots", "GET", data)
     
-    def get_all_available_slots(self) -> Dict:
+    def get_all_available_slots(self, is_special: str = None, keyword: str = None) -> Dict:
         """
-        Get all available slots from all parking lots
-        
+        Get all available slots from all parking lots, optionally filtered by is_special and keyword.
+    
+        Args:
+            is_special (str, optional): Filter slots by 'is_special' field (e.g. 'yes' or 'no').
+            keyword (str, optional): Filter slots by keyword match in slot or lot info.
+    
         Returns:
-            Combined data from all parking lots
+            Dict: Combined and filtered data from all parking lots.
         """
-        # First get all parking lots
         lots_result = self.get_parking_lots()
         
         if lots_result['status'] != 'success':
@@ -129,36 +132,50 @@ class DatabaseAPI:
         all_slots = []
         lots = lots_result.get('data', [])
         
-        # Get available slots for each parking lot
         for lot in lots:
             lot_id = int(lot.get('lot_id', 0))
-            if lot_id:
-                slots_result = self.get_available_slots(lot_id)
-                if slots_result['status'] == 'success':
-                    # The API might return slots directly in 'data' or nested in 'available_slots'
-                    slots_data = slots_result.get('data', [])
-                    
-                    # Handle nested structure: data is a list with lot info and available_slots array
-                    if slots_data and isinstance(slots_data, list):
-                        for item in slots_data:
-                            # Check if slots are nested in 'available_slots' field
-                            if 'available_slots' in item:
-                                nested_slots = item.get('available_slots', [])
-                                # Add lot information to each nested slot
-                                for slot in nested_slots:
-                                    slot['lot_latitude'] = lot.get('latitude')
-                                    slot['lot_longitude'] = lot.get('longitude')
-                                    slot['lot_name'] = lot.get('lot_name')
-                                    slot['lot_address'] = lot.get('address')
-                                    slot['parking_lot_id'] = lot_id
-                                all_slots.extend(nested_slots)
-                            else:
-                                # Slots are directly in the data array
-                                item['lot_latitude'] = lot.get('latitude')
-                                item['lot_longitude'] = lot.get('longitude')
-                                item['lot_name'] = lot.get('lot_name')
-                                item['lot_address'] = lot.get('address')
-                                all_slots.append(item)
+            if not lot_id:
+                continue
+            
+            slots_result = self.get_available_slots(lot_id)
+            if slots_result['status'] != 'success':
+                continue
+            
+            slots_data = slots_result.get('data', [])
+            
+            if isinstance(slots_data, list):
+                for item in slots_data:
+                    # Case 1: Nested slots inside 'available_slots'
+                    if 'available_slots' in item:
+                        nested_slots = item.get('available_slots', [])
+                        for slot in nested_slots:
+                            # Apply filters
+                            if is_special and slot.get('is_special', '').lower() != is_special.lower():
+                                continue
+                            if keyword:
+                                combined_text = f"{slot} {lot}".lower()
+                                if keyword.lower() not in combined_text:
+                                    continue
+                            # Add lot info
+                            slot['lot_latitude'] = lot.get('latitude')
+                            slot['lot_longitude'] = lot.get('longitude')
+                            slot['lot_name'] = lot.get('lot_name')
+                            slot['lot_address'] = lot.get('address')
+                            slot['parking_lot_id'] = lot_id
+                            all_slots.append(slot)
+                    else:
+                        # Case 2: Slots directly in data
+                        if is_special and item.get('is_special', '').lower() != is_special.lower():
+                            continue
+                        if keyword:
+                            combined_text = f"{item} {lot}".lower()
+                            if keyword.lower() not in combined_text:
+                                continue
+                        item['lot_latitude'] = lot.get('latitude')
+                        item['lot_longitude'] = lot.get('longitude')
+                        item['lot_name'] = lot.get('lot_name')
+                        item['lot_address'] = lot.get('address')
+                        all_slots.append(item)
         
         return {
             'status': 'success',
@@ -166,6 +183,7 @@ class DatabaseAPI:
             'total_lots': len(lots),
             'total_slots': len(all_slots)
         }
+
     
     def get_parking_slots(self, lot_id: Optional[int] = None) -> Dict:
         """
