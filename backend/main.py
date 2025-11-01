@@ -67,6 +67,8 @@ class SlotRecommendationRequest(BaseModel):
     user_location: UserLocation
     slots: List[ParkingSlot]
     top_k: int = 3
+    keyword: Optional[str] = None
+    is_special: Optional[str] = None
 
 
 class FeedbackRequest(BaseModel):
@@ -161,7 +163,11 @@ async def recommend_slots(request: SlotRecommendationRequest):
             slots_data = [slot.dict() for slot in request.slots]
         else:
             # Option 2: Fetch available slots from database
-            db_result = db_api.get_all_available_slots()
+            db_result = db_api.get_all_available_slots(
+                is_special=request.is_special,
+                keyword=request.keyword
+            )
+
             if db_result['status'] != 'success':
                 raise HTTPException(status_code=500, detail="Failed to fetch parking slots from database")
             
