@@ -8,7 +8,6 @@ from backend.database_api import DatabaseAPI
 
 api = DatabaseAPI()
 base_url = "https://aadarshsenapati.in/api/api.php"
-
 print("=" * 70)
 print("DIAGNOSING PAYMENT UPDATE ISSUE")
 print("=" * 70)
