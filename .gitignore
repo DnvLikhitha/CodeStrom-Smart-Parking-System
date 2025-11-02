@@ -51,3 +51,4 @@ Thumbs.db
 *.sqlite3
 
 demo_ai_model.py
+API_REFERENCE.md
